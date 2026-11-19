@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="tr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Resmi Tatiller</title><link rel="stylesheet" href="css/style.css"></head>
+<body><div class="wrap">
+<h1>🎉 Resmi Tatiller</h1>
+<div class="card">
+  <div class="toolbar"><label>Yıl: <select id="year"></select></label></div>
+  <table><thead><tr><th>Tarih</th><th>Gün</th><th>Tatil</th><th>Durum</th></tr></thead><tbody id="rows"></tbody></table>
+</div>
+<div class="card">
+  <h2 class="sec">Dini bayramlar</h2>
+  <p class="lead">Tarihleri her yıl değişir. Kesin tarihler için Diyanet takvimine bakın.</p>
+  <table><tbody id="dini"></tbody></table>
+</div>
+<footer>Image versiyonu: <b id="ver"></b></footer>
+</div>
+<script src="js/common.js"></script>
+<script>
+document.getElementById("ver").textContent = T.VERSION;
+const FIX = [[1,1,"Yılbaşı"],[23,4,"Ulusal Egemenlik ve Çocuk Bayramı"],[1,5,"Emek ve Dayanışma Günü"],
+  [19,5,"Atatürk'ü Anma, Gençlik ve Spor Bayramı"],[15,7,"Demokrasi ve Milli Birlik Günü"],[30,8,"Zafer Bayramı"],[29,10,"Cumhuriyet Bayramı"]];
+const DINI = { 2026: [["20 Mart 2026","Ramazan Bayramı (3 gün)"],["27 Mayıs 2026","Kurban Bayramı (4 gün)"]],
+  2027: [["9 Mart 2027","Ramazan Bayramı (3 gün)"],["16 Mayıs 2027","Kurban Bayramı (4 gün)"]] };
+const sel = document.getElementById("year"), now = new Date();
+for (let y = now.getFullYear() - 1; y <= now.getFullYear() + 4; y++) {
+  const o = document.createElement("option"); o.value = y; o.textContent = y; if (y === now.getFullYear()) o.selected = true; sel.appendChild(o);
+}
+function row(cells) {
+  const tr = document.createElement("tr");
+  cells.forEach(c => { const td = document.createElement("td"); td.textContent = c; tr.appendChild(td); });
+  return tr;
+}
+function render() {
+  const y = Number(sel.value), tb = document.getElementById("rows"); tb.innerHTML = "";
+  const t0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  FIX.forEach(([d, m, name]) => {
+    const dt = new Date(y, m - 1, d), diff = Math.round((dt - t0) / 86400000);
+    tb.appendChild(row([d + " " + T.MONTHS[m - 1] + " " + y, T.DAYS[dt.getDay()], name,
+      diff === 0 ? "Bugün" : diff > 0 ? diff + " gün kaldı" : "Geçti"]));
+  });
+  const dn = document.getElementById("dini"); dn.innerHTML = "";
+  (DINI[y] || []).forEach(r => dn.appendChild(row(r)));
+  if (!DINI[y]) dn.appendChild(row(["Bu yıl için veri eklenmedi."]));
+}
+sel.onchange = render; render();
+</script></body></html>

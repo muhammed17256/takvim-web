@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="tr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hakkında</title><link rel="stylesheet" href="css/style.css"></head>
+<body><div class="wrap">
+<h1>ℹ️ Proje Hakkında</h1>
+<div class="card">
+  <h2 class="sec">Çalışan image</h2>
+  <table><tbody>
+    <tr><td>Versiyon</td><td><span class="badge" id="v">-</span></td></tr>
+    <tr><td>Build tarihi</td><td id="built">-</td></tr>
+    <tr><td>Sunucu</td><td>nginx (alpine)</td></tr>
+    <tr><td>Sağlık kontrolü</td><td><a href="/healthz">/healthz</a></td></tr>
+  </tbody></table>
+</div>
+<div class="card">
+  <h2 class="sec">Teknolojiler</h2>
+  <p>Saf HTML, CSS ve JavaScript. Etkinlikler tarayıcının localStorage alanında saklanır, sunucuya veri gitmez. Sayfalar nginx ile servis edilir ve Docker image'ı olarak paketlenir.</p>
+</div>
+<div class="card">
+  <h2 class="sec">Docker komutları</h2>
+  <p class="lead">KULLANICI_ADI yerine Docker Hub kullanıcı adını yaz.</p>
+  <pre><button>Kopyala</button>docker build -t KULLANICI_ADI/takvim-web:v1.0 --build-arg APP_VERSION=v1.0 .</pre>
+  <pre><button>Kopyala</button>docker run -d -p 8080:80 --name takvim KULLANICI_ADI/takvim-web:v1.0</pre>
+  <pre><button>Kopyala</button>docker login
+docker push KULLANICI_ADI/takvim-web:v1.0</pre>
+  <pre><button>Kopyala</button>docker pull KULLANICI_ADI/takvim-web:v1.0</pre>
+</div>
+<footer>Image versiyonu: <b id="ver"></b></footer>
+</div>
+<script src="js/common.js"></script>
+<script>
+document.getElementById("ver").textContent = T.VERSION;
+document.getElementById("v").textContent = T.VERSION;
+fetch("version.json").then(r => r.json()).then(j => {
+  document.getElementById("v").textContent = j.version;
+  document.getElementById("built").textContent = j.built;
+}).catch(() => {});
+document.querySelectorAll("pre button").forEach(b => b.onclick = () => {
+  const text = b.parentNode.textContent.replace("Kopyala", "").trim();
+  if (navigator.clipboard) navigator.clipboard.writeText(text);
+  b.textContent = "Kopyalandı"; setTimeout(() => b.textContent = "Kopyala", 1500);
+});
+</script></body></html>

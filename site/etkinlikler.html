@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="tr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Etkinlikler</title><link rel="stylesheet" href="css/style.css"></head>
+<body><div class="wrap">
+<h1>🗂️ Tüm Etkinlikler</h1>
+<div class="card">
+  <div class="toolbar">
+    <input type="text" id="q" placeholder="Etkinlik ara...">
+    <select id="mode"><option value="all">Hepsi</option><option value="up">Yaklaşanlar</option><option value="past">Geçmiş</option></select>
+    <button id="exJson">JSON indir</button>
+    <button id="exIcs">ICS indir</button>
+    <button id="imp">İçe aktar</button>
+    <input type="file" id="file" accept=".json" hidden>
+  </div>
+  <table><thead><tr><th>Tarih</th><th>Saat</th><th>Etkinlik</th><th></th></tr></thead><tbody id="rows"></tbody></table>
+  <div class="empty" id="empty">Etkinlik bulunamadı. Takvim sayfasından ekleyebilirsin.</div>
+  <div class="sub" id="count" style="color:var(--muted);margin-top:8px"></div>
+</div>
+<footer>Image versiyonu: <b id="ver"></b></footer>
+</div>
+<script src="js/common.js"></script>
+<script>
+document.getElementById("ver").textContent = T.VERSION;
+const $ = id => document.getElementById(id);
+function all() {
+  const ev = T.load(), out = [];
+  for (const k in ev) ev[k].forEach(e => out.push(Object.assign({ date: k }, e)));
+  return out.sort((a, b) => (a.date + (a.time || "")).localeCompare(b.date + (b.time || "")));
+}
+function render() {
+  const today = T.ymd(new Date()), q = $("q").value.toLowerCase(), mode = $("mode").value;
+  let l = all().filter(e => e.title.toLowerCase().includes(q));
+  if (mode === "up") l = l.filter(e => e.date >= today);
+  if (mode === "past") l = l.filter(e => e.date < today);
+  const tb = $("rows"); tb.innerHTML = "";
+  l.forEach(e => {
+    const [y, m, d] = e.date.split("-").map(Number);
+    const tr = document.createElement("tr");
+    [d + " " + T.MONTHS[m - 1] + " " + y, e.time || "-", e.title].forEach((t, i) => {
+      const td = document.createElement("td"); td.textContent = t;
+      if (i === 2) td.style.borderLeft = "4px solid " + e.color;
+      tr.appendChild(td);
+    });
+    const td = document.createElement("td"), b = document.createElement("button");
+    b.textContent = "Sil"; b.onclick = () => {
+      const ev = T.load(); ev[e.date] = (ev[e.date] || []).filter(x => x.id !== e.id);
+      if (!ev[e.date].length) delete ev[e.date]; T.save(ev); render();
+    };
+    td.appendChild(b); tr.appendChild(td); tb.appendChild(tr);
+  });
+  $("empty").style.display = l.length ? "none" : "block";
+  $("count").textContent = l.length + " etkinlik gösteriliyor (toplam " + all().length + ")";
+}
+function download(name, text, type) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name; a.click();
+}
+$("exJson").onclick = () => download("etkinlikler.json", JSON.stringify(T.load(), null, 2), "application/json");
+$("exIcs").onclick = () => {
+  const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//takvim-web//TR"];
+  all().forEach(e => {
+    const d = e.date.replace(/-/g, "");
+    lines.push("BEGIN:VEVENT", "UID:" + String(e.id).replace(/\./g, "") + "@takvim-web", "SUMMARY:" + e.title);
+    lines.push(e.time ? "DTSTART:" + d + "T" + e.time.replace(":", "") + "00" : "DTSTART;VALUE=DATE:" + d, "END:VEVENT");
+  });
+  lines.push("END:VCALENDAR");
+  download("takvim.ics", lines.join("\r\n"), "text/calendar");
+};
+$("imp").onclick = () => $("file").click();
+$("file").onchange = e => {
+  const r = new FileReader();
+  r.onload = () => {
+    try {
+      const inc = JSON.parse(r.result), cur = T.load();
+      for (const k in inc) cur[k] = (cur[k] || []).concat(inc[k]);
+      T.save(cur); render(); alert("İçe aktarıldı.");
+    } catch (err) { alert("Geçersiz JSON dosyası."); }
+  };
+  r.readAsText(e.target.files[0]);
+};
+$("q").oninput = render; $("mode").onchange = render;
+render();
+</script></body></html>

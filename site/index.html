@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aylık Takvim</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="wrap">
+  <h1>📅 Aylık Takvim</h1>
+  <div class="layout">
+    <div class="card">
+      <div class="head">
+        <button id="today">Bugün</button>
+        <div class="nav">
+          <button id="prev" aria-label="Önceki ay">&#8249;</button>
+          <h2 id="title"></h2>
+          <button id="next" aria-label="Sonraki ay">&#8250;</button>
+        </div>
+        <span style="width:64px"></span>
+      </div>
+      <div class="grid" id="dows"></div>
+      <div class="grid" id="days" style="margin-top:6px"></div>
+    </div>
+
+    <div class="card side">
+      <h3 id="selTitle"></h3>
+      <div class="sub" id="selSub"></div>
+      <ul class="events" id="events"></ul>
+      <div class="empty" id="empty">Bu gün için etkinlik yok.</div>
+      <div class="form">
+        <input type="text" id="evTitle" placeholder="Etkinlik adı" maxlength="60">
+        <div class="row">
+          <input type="time" id="evTime">
+          <div class="colors" id="colors"></div>
+        </div>
+        <button class="primary" id="add">Etkinlik ekle</button>
+      </div>
+    </div>
+  </div>
+  <footer>Takvim Uygulaması &middot; Image versiyonu: <b id="ver"></b></footer>
+</div>
+
+<script src="js/common.js"></script>
+<script>
+const APP_VERSION = "__APP_VERSION__";
+document.getElementById("ver").textContent = APP_VERSION.startsWith("__") ? "dev" : APP_VERSION;
+
+const MONTHS = ["Ocak","Şubat","Mart","Nisan","Mayıs","Haziran","Temmuz","Ağustos","Eylül","Ekim","Kasım","Aralık"];
+const DOWS = ["Pzt","Sal","Çar","Per","Cum","Cmt","Paz"];
+const HOLIDAYS = {
+  "1-1": "Yılbaşı",
+  "23-4": "Ulusal Egemenlik ve Çocuk Bayramı",
+  "1-5": "Emek ve Dayanışma Günü",
+  "19-5": "Atatürk'ü Anma, Gençlik ve Spor Bayramı",
+  "15-7": "Demokrasi ve Milli Birlik Günü",
+  "30-8": "Zafer Bayramı",
+  "29-10": "Cumhuriyet Bayramı"
+};
+const COLORS = ["#4f6df5", "#2fa36b", "#e8554a", "#9b5de5", "#e08a1e"];
+const STORE_KEY = "takvim-etkinlikler";
+
+let events = loadEvents();           // { "2026-11-19": [ {id,title,time,color} ] }
+const now = new Date();
+let viewYear = now.getFullYear();
+let viewMonth = now.getMonth();
+let selected = ymd(now);
+let pickedColor = COLORS[0];
+
+function loadEvents() {
+  try { return JSON.parse(localStorage.getItem(STORE_KEY)) || {}; } catch (e) { return {}; }
+}
+function saveEvents() {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(events)); } catch (e) { /* depolama kapali */ }
+}
+function pad(n) { return String(n).padStart(2, "0"); }
+function ymd(d) { return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); }
+function holidayOf(d) { return HOLIDAYS[d.getDate() + "-" + (d.getMonth() + 1)]; }
+
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+
+function renderCalendar() {
+  document.getElementById("title").textContent = MONTHS[viewMonth] + " " + viewYear;
+
+  const dows = document.getElementById("dows");
+  dows.innerHTML = "";
+  DOWS.forEach((d, i) => dows.appendChild(el("div", "dow" + (i >= 5 ? " we" : ""), d)));
+
+  const days = document.getElementById("days");
+  days.innerHTML = "";
+  const first = new Date(viewYear, viewMonth, 1);
+  const offset = (first.getDay() + 6) % 7;            // pazartesi = 0
+  const start = new Date(viewYear, viewMonth, 1 - offset);
+  const todayKey = ymd(new Date());
+
+  for (let i = 0; i < 42; i++) {
+    const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+    const key = ymd(d);
+    const hol = holidayOf(d);
+    const cell = el("div", "day");
+    if (d.getMonth() !== viewMonth) cell.classList.add("other");
+    if (i % 7 >= 5) cell.classList.add("weekend");
+    if (hol) cell.classList.add("holiday");
+    if (key === todayKey) cell.classList.add("today");
+    if (key === selected) cell.classList.add("selected");
+    cell.appendChild(el("div", "num", d.getDate()));
+
+    if (hol) { const c = el("div", "chip hol", hol); c.title = hol; cell.appendChild(c); }
+    const list = (events[key] || []).slice().sort((a, b) => (a.time || "").localeCompare(b.time || ""));
+    list.slice(0, 2).forEach(ev => {
+      const c = el("div", "chip", (ev.time ? ev.time + " " : "") + ev.title);
+      c.style.background = ev.color;
+      cell.appendChild(c);
+    });
+    if (list.length > 2) cell.appendChild(el("div", "more", "+" + (list.length - 2) + " daha"));
+
+    cell.addEventListener("click", () => {
+      selected = key;
+      if (d.getMonth() !== viewMonth) { viewMonth = d.getMonth(); viewYear = d.getFullYear(); }
+      render();
+    });
+    days.appendChild(cell);
+  }
+}
+
+function renderSide() {
+  const [y, m, d] = selected.split("-").map(Number);
+  const date = new Date(y, m - 1, d);
+  const dayName = ["Pazar","Pazartesi","Salı","Çarşamba","Perşembe","Cuma","Cumartesi"][date.getDay()];
+  document.getElementById("selTitle").textContent = d + " " + MONTHS[m - 1] + " " + y + ", " + dayName;
+  document.getElementById("selSub").textContent = holidayOf(date) ? "🎉 " + holidayOf(date) : "";
+
+  const ul = document.getElementById("events");
+  ul.innerHTML = "";
+  const list = (events[selected] || []).slice().sort((a, b) => (a.time || "").localeCompare(b.time || ""));
+  document.getElementById("empty").style.display = list.length ? "none" : "block";
+  list.forEach(ev => {
+    const li = el("li");
+    const dot = el("span", "dot"); dot.style.background = ev.color;
+    li.appendChild(dot);
+    li.appendChild(el("span", "t", ev.title));
+    if (ev.time) li.appendChild(el("span", "time", ev.time));
+    const del = el("button", "del", "✕");
+    del.title = "Sil";
+    del.addEventListener("click", () => {
+      events[selected] = events[selected].filter(x => x.id !== ev.id);
+      if (!events[selected].length) delete events[selected];
+      saveEvents(); render();
+    });
+    li.appendChild(del);
+    ul.appendChild(li);
+  });
+}
+
+function render() { renderCalendar(); renderSide(); }
+
+function addEvent() {
+  const input = document.getElementById("evTitle");
+  const title = input.value.trim();
+  if (!title) { input.focus(); return; }
+  const ev = { id: Date.now() + Math.random(), title, time: document.getElementById("evTime").value, color: pickedColor };
+  (events[selected] = events[selected] || []).push(ev);
+  saveEvents();
+  input.value = "";
+  render();
+}
+
+function buildColors() {
+  const box = document.getElementById("colors");
+  COLORS.forEach((c, i) => {
+    const label = el("label");
+    const radio = document.createElement("input");
+    radio.type = "radio"; radio.name = "color"; radio.checked = i === 0;
+    radio.addEventListener("change", () => { pickedColor = c; });
+    const sw = el("span"); sw.style.background = c;
+    label.appendChild(radio); label.appendChild(sw);
+    box.appendChild(label);
+  });
+}
+
+function shiftMonth(delta) {
+  const d = new Date(viewYear, viewMonth + delta, 1);
+  viewYear = d.getFullYear(); viewMonth = d.getMonth();
+  renderCalendar();
+}
+
+document.getElementById("prev").addEventListener("click", () => shiftMonth(-1));
+document.getElementById("next").addEventListener("click", () => shiftMonth(1));
+document.getElementById("today").addEventListener("click", () => {
+  const n = new Date(); viewYear = n.getFullYear(); viewMonth = n.getMonth(); selected = ymd(n); render();
+});
+document.getElementById("add").addEventListener("click", addEvent);
+document.getElementById("evTitle").addEventListener("keydown", e => { if (e.key === "Enter") addEvent(); });
+
+buildColors();
+render();
+</script>
+</body>
+</html>
