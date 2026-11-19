@@ -96,3 +96,4 @@ TAG=v2.0 DOCKERHUB_USER=KULLANICI_ADI docker compose up -d
 
 ## Lisans
 MIT, bkz. `LICENSE`.
+# takvim-web
